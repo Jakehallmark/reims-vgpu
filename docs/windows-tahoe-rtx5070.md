@@ -10,9 +10,10 @@ This report is provisional while newer renderer code is tested on Windows.
 Upstream metal2vulkan now includes broader float framebuffer blending and
 compressed-texture decoding. In particular, commit
 [`930d746`](https://github.com/steelbrain/metal2vulkan/commit/930d746df786108cb8b08000070dddcfe04be207)
-adds ASTC decoding through sampled twins. Its presence in source does not
-establish that Maps works with the Windows integration. The failures below
-are baseline observations, not claims about the newest upstream revision.
+adds ASTC decoding through sampled twins. A separate Windows integration
+now survives the Weather and Maps checks described below, but has visible
+rendering and responsiveness problems. The failures below are baseline
+observations, not claims about the newest upstream revision.
 
 ## Tested configuration
 
@@ -185,6 +186,43 @@ The probe compiled under Tahoe's Command Line Tools with the flags above.
 This contribution changes no library capability answers, scheduling or
 renderer implementation. No library/GPU regression suite was run for it;
 the isolated guest probe is its targeted validation.
+
+## Newer renderer trial: crashes improved, rendering still under test
+
+A separate twelve-vCPU VM was cold-booted with a local integration of
+upstream metal2vulkan `a2c440b8bcdcf20d34aa1694b61ae22c2a7ea68b`
+and the Windows host changes. The tested renderer tree was
+`836bce913a855b008a629184f7cd14cd5cb6aa78`; its Reims consumer was
+`6696bb9dbac87a21a5562fb72245ce4481b8f45e`. These are local integration
+revisions, not a released dependency or a change to this PR's renderer pin.
+The normal launcher and preferred twelve-vCPU state were left in place.
+
+Weather remained running for at least sixteen minutes. The user checked
+other cities and reported that forecast cards and animations looked correct,
+with stutters when switching cities. Maps remained running for at least nine
+minutes, including manual panning, zooming, satellite view, traffic and 3D.
+The user reported poor responsiveness, especially in 3D. Those observations
+show that the earlier fatal paths were avoided in this trial; they do not
+qualify either app for sustained use.
+
+The user also reported button backgrounds flickering between light and dark
+under graphical load, including an earlier occurrence in Calculator. The
+cause is unresolved. This remains a correctness problem even when an app
+stays open. The candidate has not replaced the preserved desktop build.
+
+Authored native GPU tests on the RTX 5070 passed float framebuffer blending
+and ASTC LDR/sRGB decoding with Vulkan validation enabled. The ASTC checks
+covered private uploads and shared-texture replacement, nonconstant blocks,
+GPU decode execution, sampled pixel comparisons and compressed readback.
+Inside the guest, the four small fetch/blend probes and the ASTC submission
+probe completed. A separate authored offscreen check completed 480 frames
+across private and shared buffer-backed RGBA16Float targets, with two queues
+and four frames in flight, without pixel differences greater than 0.003.
+That limited blend check did not reproduce the button flicker.
+
+These results do not constitute the renderer's full regression gate or a
+before/after pacing benchmark. Command-buffer timing and the flicker still
+need investigation. No renderer integration code is included in this PR.
 
 ## Boot-picker wait versus guest startup
 

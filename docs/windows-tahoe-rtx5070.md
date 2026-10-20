@@ -2,8 +2,17 @@
 
 This is a single-machine field report from 2026-10-18 through 2026-10-20,
 not a performance qualification or a recommended CPU profile for all hosts.
-It records a usable desktop configuration and two remaining host-fatal
-graphics gaps. Raw guest captures, identifiers and Apple shaders are omitted.
+It records a usable desktop configuration and two host-fatal failures in
+the pinned renderer below. Raw guest captures, identifiers and Apple shaders
+are omitted.
+
+This report is provisional while newer renderer code is tested on Windows.
+Upstream metal2vulkan now includes broader float framebuffer blending and
+compressed-texture decoding. In particular, commit
+[`930d746`](https://github.com/steelbrain/metal2vulkan/commit/930d746df786108cb8b08000070dddcfe04be207)
+adds ASTC decoding through sampled twins. Its presence in source does not
+establish that Maps works with the Windows integration. The failures below
+are baseline observations, not claims about the newest upstream revision.
 
 ## Tested configuration
 
@@ -71,7 +80,7 @@ support a before/after stutter percentage, and a display-link callback is
 not proof that a frame reached the physical monitor. No causal CPU-tuning
 speedup is claimed from these captures.
 
-## Remaining failure classes
+## Failure classes in the pinned build
 
 ### Weather: blended framebuffer fetch
 
@@ -165,7 +174,7 @@ in the working launch profile.
 **Measured:** the `half-fast` draw still terminated the exact-half-blend
 process with the same named feature refusal. This isolates a smaller
 unsupported math/blend combination without assuming Weather's complete
-shader form is identical. The `float-*` modes have not been run.
+shader form is identical. The `float-*` modes were not run on this baseline.
 
 **Measured:** ASTC texture creation alone returned a guest texture object.
 Submitting its texture-to-buffer copy then terminated the host with
@@ -204,7 +213,8 @@ do not prove that the guest has passed its boot picker or started SSH.
 5. Test Weather and Maps separately after desktop measurements. A host-fatal
    run is a failure/reproduction result, not a completed pacing benchmark.
 
-The next renderer work is the two feature gaps above. Shared clipboard,
+Retesting these failures against the newer renderer is still in progress.
+The setup changes in this PR do not implement either renderer fix. Shared clipboard,
 file sharing and elastic memory/CPU allocation are separate integration
 work; this experiment does not implement WSL-like resource management or
 direct GPU passthrough.

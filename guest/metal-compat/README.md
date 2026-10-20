@@ -112,7 +112,8 @@ TestUFO performance comparison.
 ## Prepare the bridge on Windows
 
 The bridge is experimental. Use a disposable VM with the matching host
-runtime; Weather and Maps still reach unsupported operations. The Windows
+runtime. The pinned build in the [Windows field report](../../docs/windows-tahoe-rtx5070.md)
+failed in Weather and Maps; newer renderer fixes are being retested. The Windows
 setup below is restricted to the tested Darwin 25.6.0 kernel. It does not
 change the CPU allocation, machine identity, SIP or AMFI.
 

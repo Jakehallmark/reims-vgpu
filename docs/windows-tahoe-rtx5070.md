@@ -122,6 +122,71 @@ alternate guest path on this GPU/driver. CPU affinity, SMBIOS identity and
 additional vCPUs cannot supply the missing Vulkan format support. Merely
 claiming ASTC support would leave the texture's contents unimplemented.
 
+## Authored offscreen feature probes
+
+`guest/metal-compat/feature-gap-probe.m` contains source written for this
+investigation, with no framework shaders, cached metallibs or Apple assets.
+Compile it inside a logged-in macOS 15-or-newer graphics session:
+
+```sh
+clang -Wall -Wextra -Werror -fobjc-arc -framework Foundation -framework Metal \
+  feature-gap-probe.m -o feature-gap-probe
+./feature-gap-probe half-rounded
+```
+
+Run these only on disposable VM overlays with the working configuration
+preserved: an unsupported operation can terminate the entire VM host process.
+The probe has no window or input handling. Fetch modes create a pipeline and
+submit one offscreen triangle into an 8x8 RGBA16Float attachment in slot 1,
+with an unused BGRA8Unorm attachment in slot 0 and source-over blending.
+After completion they synchronize the texture and print one pixel's half bits.
+These bits are diagnostics, not a cross-device accuracy assertion.
+
+Modes are `half-rounded`, `half-fast`, `float-rounded`, `float-fast` and
+`astc`. The first four vary the source/output vector type and Metal math
+mode; `astc` creates one private ASTC 8x8 LDR sampled texture and submits a
+texture-to-buffer copy to force deferred host creation. It does not upload
+assets, draw or assert the unspecified texture contents. Modes not listed as measured below are not validated.
+
+**Measured:** the safe-math `half-rounded` draw terminated the baseline
+runtime with the same `FramebufferFetch` / `NotImplemented` class at color
+slot 1. With only `REIMS_VGPU_EXACT=half_blend` enabled in a separate test
+process, that draw completed and returned pixel bits
+`3385,3785,39a4,3b85`. Pipeline creation alone succeeded in the guest under
+both configurations; the host refusal appeared on submission, so a
+pipeline-creation-only probe would have missed it.
+
+**Measured:** opening Weather with exact half-blend still terminated the
+host with `FramebufferFetch` / `NotImplemented`. Thus the authored case
+reproduces a relevant failure class but not all of Weather's requirements;
+exact half-blend is not a validated Weather workaround and was not adopted
+in the working launch profile.
+
+**Measured:** the `half-fast` draw still terminated the exact-half-blend
+process with the same named feature refusal. This isolates a smaller
+unsupported math/blend combination without assuming Weather's complete
+shader form is identical. The `float-*` modes have not been run.
+
+**Measured:** ASTC texture creation alone returned a guest texture object.
+Submitting its texture-to-buffer copy then terminated the host with
+`MTLPixelFormatASTC_8x8_LDR` / `VK_FORMAT_ASTC_8x8_UNORM_BLOCK` sampled-image
+format refusal, matching the Maps failure class. A creation-only texture
+probe would therefore also have missed the deferred host refusal.
+The probe compiled under Tahoe's Command Line Tools with the flags above.
+This contribution changes no library capability answers, scheduling or
+renderer implementation. No library/GPU regression suite was run for it;
+the isolated guest probe is its targeted validation.
+
+## Boot-picker wait versus guest startup
+
+The tested OpenCore image initially used `Misc/Boot/Timeout=0` and
+`AllowSetDefault=false`, requiring manual selection of macOS before SSH
+could start. An independent image with a five-second timeout,
+`AllowSetDefault=true` and APFS/HFS discovery (`ScanPolicy=0x301`) booted
+macOS and reached automatic login without picker input. The previous image
+and NVRAM were preserved. A live QEMU process and a forwarded host SSH port
+do not prove that the guest has passed its boot picker or started SSH.
+
 ## Repeating comparisons safely
 
 1. Shut macOS down cleanly before freezing a checkpoint. Preserve the exact
